@@ -181,180 +181,76 @@ If time allows, open `/admin/users`, click the **Coalition Contractor**, and sho
 
 ---
 
-## Demo flow — detailed reference script (~12 min, search/admin only)
+## Seed data reference
 
-This script is designed to land four points in order: (1) the **same query** returns different rows per persona via row-level ABAC, (2) field-level **redaction** with `[REDACTED]`, (3) field-level **omission** of compartmented data, and (4) policies are **live-editable** without redeploying.
+What `npm run seed` loads into MongoDB. The full source is in `data/*.seed.json` — these tables are the at-a-glance version useful when demoing.
 
-The five seeded personas (header dropdown, top → bottom):
+### Seeded personas (users)
 
-| # | Persona | Clearance | Nationality | Unit | Compartments |
-|---|---|---|---|---|---|
-| 1 | UK Joint Intelligence Analyst — *Maj. R. Whitcombe* | TOP SECRET | GBR | DI | OP_NEPTUNE, OP_ORION |
-| 2 | US Liaison Officer — *Lt. Col. J. Carter* | SECRET | USA | LO-UK | OP_NEPTUNE |
-| 3 | UK Logistics Officer — *Capt. S. Patel* | OFFICIAL | GBR | 3_CDO_BDE | — |
-| 4 | Coalition Contractor — *Ms. K. Nguyen* | OFFICIAL | AUS | EXT | — |
-| 5 | Compliance Auditor — *Mr. D. Holland* | TOP SECRET | GBR | * | * |
+Visible in the header dropdown, top → bottom.
 
-The five seeded policies:
+| # | Persona | Clearance | Nationality | Unit | Compartments | Notes |
+|---|---|---|---|---|---|---|
+| 1 | UK Joint Intelligence Analyst — *Maj. R. Whitcombe* | TOP SECRET | GBR | DI | OP_NEPTUNE, OP_ORION | Broadest access; everything passes for this persona. |
+| 2 | US Liaison Officer — *Lt. Col. J. Carter* | SECRET | USA | LO-UK | OP_NEPTUNE | Drives the redaction + per-item media gating demo moments. |
+| 3 | UK Logistics Officer — *Capt. S. Patel* | OFFICIAL | GBR | 3_CDO_BDE | — | Demos the "own unit's OFFICIAL records" row policy. |
+| 4 | Coalition Contractor — *Ms. K. Nguyen* | OFFICIAL | AUS | EXT | — | The "can't retrieve, can't leak" moment — almost everything filters out. |
+| 5 | Compliance Auditor — *Mr. D. Holland* | TOP SECRET | GBR | * | * | `isAuditor: true` — policy engine short-circuits. |
 
-| # | Policy | Why it's there |
-|---|---|---|
-| 1 | Row — clearance AND nationality releasability | The classic ABAC gate. |
-| 2 | Row — compartments need-to-know | Adds the "even if you're cleared and nationality matches, you still need the compartment" stack. |
-| 3 | Row — own unit's OFFICIAL records | Lets the Logistics Officer see their own brigade's data without a wider clearance. |
-| 4 | Field — source_name protected by source_classification | Redacts source attribution on docs whose source is more sensitive than the doc itself. |
-| 5 | Field — precise grid_ref omitted for non-compartment holders | Omits `grid_ref` entirely if the persona lacks the compartments. |
+### Seeded policies
 
-The query used throughout: **`supply route disruption near Murmansk`** (it's one of the sample-query pills under the search box).
+| # | Policy | Target / Effect | What it does |
+|---|---|---|---|
+| 1 | Row — clearance AND nationality releasability | row / allow | The classic ABAC gate: clearance covers classification, nationality is in releasability. |
+| 2 | Row — compartments need-to-know | row / allow | Adds the compartments-superset check on top of policy 1. |
+| 3 | Row — own unit's OFFICIAL records | row / allow | Lets the Logistics Officer see their own brigade's OFFICIAL data without wider clearance. |
+| 4 | Field — source_name protected by source_classification | field / redact | Replaces `source_name` with `[REDACTED]` when the doc's `source_classification` exceeds the persona's clearance. |
+| 5 | Field — precise grid_ref omitted for non-compartment holders | field / omit | Removes `grid_ref` entirely when the persona doesn't hold every compartment the doc is tagged with. |
+| 6 | Media — clearance, releasability and compartments per item | media / allow | Per-item gating of `mediaItems[]` evaluated against the *item's own* attributes — not the parent report's. |
 
----
+### Seeded reports
 
-### Step 0 — Set the scene (30s)
+20 synthetic intelligence reports (`INTREP-2025-0001` through `INTREP-2025-0020`). Three of them carry attached media — those are the records that drive the multimodal moments. Highlights for the demo:
 
-Open `/admin`. Read the five policies aloud. Make the point that nothing is hard-coded — these are documents in a MongoDB collection, edited via the same database call as the data itself. Click *Run preview* at the bottom — the audience sees, in one table, how many rows each persona would see and how many fields would be redacted/omitted. This is the policy-author's test surface before going live.
+| Report ID | Title | Classification | Compartments | Notable for |
+|---|---|---|---|---|
+| INTREP-2025-0001 | Surface contact pattern shift, Barents approaches | TOP SECRET / GBR | OP_NEPTUNE | TS-only — only the UK Analyst and Auditor see it. |
+| INTREP-2025-0003 | Supply convoy timings, Kola peninsula | SECRET / GBR-USA-CAN | OP_NEPTUNE | `source_classification: TOP_SECRET` — `source_name` redacts for the US Liaison. **Carries a TOP SECRET drone still** that the US Liaison cannot see. |
+| INTREP-2025-0005 | Maintenance backlog, 3 Cdo Bde vehicle fleet | OFFICIAL / Five Eyes | — | Visible to the Logistics Officer via the own-unit policy. |
+| INTREP-2025-0010 | Allied port visit programme, Q3 | OFFICIAL / Five Eyes | — | **Carries an OFFICIAL dockside truck photo** — the language-disambiguation demo seed (UK persona searches "lorry", finds "truck"). |
+| INTREP-2025-0014 | Radar coverage gap — Norwegian coast | SECRET / GBR-USA-CAN-NZL | OP_ORION | The single card where redaction *and* omission both fire for the US Liaison (source redacted, grid_ref omitted). |
+| INTREP-2025-0017 | Adversary UAV sightings — northern training area | SECRET / GBR-USA-NZL | — | **Carries two media items** — see media table below. The cleanest per-item ABAC moment on a single report. |
 
-### Step 1 — Full visibility (UK Joint Intel Analyst) (1 min)
+### Seeded media items
 
-Switch to `/search`. Persona = *UK Joint Intelligence Analyst* (default — top of dropdown). Click the **`supply route disruption near Murmansk`** sample query pill.
+Each `mediaItems[]` entry has its own classification / releasability / compartments — independently of the parent report. The media policy evaluates these per item.
 
-What the audience should see:
-- 5+ results, with the top hits being reports tagged TOP SECRET / OP_NEPTUNE.
-- Sources fully visible (`SIGINT/THRESHER`, `HUMINT/COBALT-7`, etc.).
-- `grid_ref` values present (e.g. `68.45N 035.12E`).
-- Counter at the top reads "Showing N matches visible to this persona" with no "hidden by policy" chip.
+| Media ID | Parent | Type | Caption | Classification | Releasability | Why it's there |
+|---|---|---|---|---|---|---|
+| MED-0003-A | INTREP-2025-0003 | image | Drone still: dispersed supply trucks on MSR east of Kola, dusk approach. | TOP SECRET | GBR | TS / GBR-only on a SECRET / GBR-USA-CAN report — US Liaison sees the report but the image is a redacted stub. |
+| MED-0010-A | INTREP-2025-0010 | image | Dockside photograph: stores **truck** offloading at the Portsmouth jetty… | OFFICIAL | Five Eyes | Universally visible; the US-English **"truck"** caption seeds the multilingual / dialect demo (UK persona's "lorry" query matches it semantically). |
+| MED-0017-A | INTREP-2025-0017 | image | Long-lens still of suspected adversary UAV transiting the northern training area at low level. | SECRET | GBR, USA, NZL | Visible to UK Analyst and US Liaison; AUS Contractor can't see the parent report at all. |
+| MED-0017-B | INTREP-2025-0017 | video | Thermal video, 22 second clip: UAV pattern of life over picket position; sensor-specific signature visible. | TOP SECRET | GBR | The other item on the same report. UK Analyst sees both; **US Liaison sees the still but the thermal video is a redacted stub** — the cleanest single-card dual-result moment. |
 
-Talk track: "This is the analyst's view. Top Secret clearance, UK national, in the DI unit, holds both compartments. Everything is visible because every seeded policy passes."
+### Sample queries to try
 
-### Step 2 — Field-level **redaction** (US Liaison Officer) (2 min)
+Each pre-loaded as a pill under the search box. The first three exercise the report-text vector index; the last three exercise the media vector index.
 
-**Without changing the query**, switch persona to *US Liaison Officer*.
+| Query | What it should surface |
+|---|---|
+| *supply route disruption near Murmansk* | The Kola-related reports (0002, 0003); INTREP-2025-0003 also pulls in the drone still as a "text + media" match for the UK Analyst. |
+| *northern fleet activity* | TS-only reports 0001 and 0007 — only the UK Analyst and Auditor see them. |
+| *OP NEPTUNE planning indicators* | OP_NEPTUNE-compartmented material — filters out for personas without that compartment. |
+| *aerial drone view of a convoy on a road* | Targets MED-0003-A by caption — appears as "via media" for the UK Analyst, hidden entirely for the US Liaison. |
+| *thermal imagery of a UAV at night* | Targets MED-0017-B — the thermal video. UK Analyst sees the report with the video tile outlined; US Liaison sees the report via the still and the video as a redacted stub. |
+| *dockside photograph of supply lorries* | Targets MED-0010-A — the "lorry → truck" cross-dialect retrieval moment. |
 
-What the audience should see (the **demo moment**):
-- The Kola supply convoys report (INTREP-2025-0003) is still in the list — it's SECRET and US-releasable.
-- The source field now shows **`[REDACTED]`** with the red diagonal-hatch styling — not the literal string `SIGINT/THRESHER`.
-- The footer of that card says `Redacted: source_name`.
-- A "hidden by row-level policy" amber chip appears in the result summary, because the TS-only reports dropped out.
+### Where to edit
 
-Talk track: "Same query. Same MongoDB pipeline. But Lt. Col. Carter is SECRET, not TS — so the *report* is visible, but the *source* isn't. This isn't post-processing in the UI — the value `[REDACTED]` is what came out of the database. The application never saw `SIGINT/THRESHER`."
-
-The same redaction also fires on **INTREP-2025-0008** (`RN/UKHO — Project ACHILLES`) and **INTREP-2025-0014** (`RN/MARSEC — Detachment SENTINEL`) — both SECRET docs with TS-classified sources.
-
-### Step 3 — Field-level **omission** (still US Liaison) (1 min)
-
-Stay on the US Liaison. Find the **Radar coverage gap — Norwegian coast** card (INTREP-2025-0014).
-
-What the audience should see on that one card:
-- The row is visible — it's SECRET and releasable to USA.
-- `source_name` is `[REDACTED]` (the source is TS-classified).
-- `grid_ref` shows **italic "omitted"** in amber — the doc is tagged `OP_ORION` and Carter only holds `OP_NEPTUNE`, so the compartment-superset check fails.
-- The card footer says both `Redacted: source_name` and `Omitted: grid_ref`.
-
-Now switch to the **UK Analyst** and look at the same report. Both fields are present — `RN/MARSEC — Detachment SENTINEL` and the precise grid reference. Switch back.
-
-Talk track: "Two field treatments shipped. `[REDACTED]` replaces the value but leaves the field present — useful when the analyst needs to know that *something* was withheld. *Omitted* removes the field entirely; the application can't distinguish 'hidden by policy' from 'never existed'. Same engine, two different effects, both compiled into one `$set` stage. On this single document, both fire — for different reasons — driven by different attributes of the same persona."
-
-(For contrast, point out that the other returned cards have `grid_ref` shown normally — those don't carry the OP_ORION compartment, so the field policy doesn't fire.)
-
-### Step 4 — Pop the hood (1 min)
-
-Click the **MongoDB pipeline** panel below the results. Expand it.
-
-What to point at:
-1. The `$vectorSearch` stage with `path: "embedding"` and a `queryVector` placeholder — *we embed once, in our middleware, via Voyage; we never round-trip embedded text to a managed service in this demo*.
-2. The `filter` clause inside `$vectorSearch` — this is the **ABAC pre-filter**. The kNN never even considers documents this persona can't see. Make the point: in a post-filter design, an attacker could infer that "N more docs exist that I can't access" by hit-count differences. Here, they cannot.
-3. The `$set` stage further down — a per-field `$cond` that swaps `source_name` for `[REDACTED]` when the persona's clearance falls below the field's `source_classification`. This is the field-level policy compiled into a Mongo expression.
-
-Talk track: "Everything you've just seen is a deterministic compilation of the persona's attributes against the active policy set. Same engine, same pipeline shape, every time."
-
-### Step 5 — Unit-scoped access (UK Logistics Officer) (1 min)
-
-Switch persona to *UK Logistics Officer*. Same query, **no re-typing**.
-
-What the audience should see:
-- The result set collapses to OFFICIAL records — and only those originating from `3_CDO_BDE`. Reports like *Maintenance backlog, 3 Cdo Bde vehicle fleet* and *Cold weather training rotation* show.
-- All TS/SECRET material is gone.
-- The "N hidden by row-level policy" chip jumps.
-
-Talk track: "Capt. Patel only has OFFICIAL clearance and isn't in any compartment, so policies 1 and 2 never fire for them. But policy 3 — 'own unit's OFFICIAL records' — does. ABAC composes; the persona is the *union* of what every applicable policy grants."
-
-### Step 6 — The "can't retrieve, can't leak" moment (Coalition Contractor) (45s)
-
-Switch persona to *Coalition Contractor (AUS)*. Same query.
-
-What the audience should see:
-- Almost no results. Possibly a single OFFICIAL OSINT report releasable to AUS.
-- "X hidden by row-level policy" chip is very large.
-
-Talk track: "Ms. Nguyen is an Australian contractor — OFFICIAL only, no unit, no compartments. The semantic search *cannot find* the supply-route reports she's asking about, because they aren't candidates in the kNN. The model can't leak what it can't retrieve."
-
-### Step 7 — Auditor (45s)
-
-Switch persona to *Compliance Auditor*. Same query.
-
-What the audience should see:
-- The **AUDITOR** chip appears in the persona switcher *and* in the result summary banner.
-- All rows visible — including TS, all compartments. No redactions, no omissions.
-
-Talk track: "The auditor bypass isn't a hard-coded backdoor. It's a single conditional in the policy engine — `if persona.isAuditor`, return empty filter — and in production that branch would emit an audit log line. The point: auditor access is itself a policy. Same data, same pipeline, the engine just gets a different input."
-
-### Step 8 — Live policy editing (1.5 min)
-
-Back to `/admin`. Click the policy **"Field — source_name protected by source_classification"**. Show the visual builder + JSON on the right. Toggle it **off** via the "on" checkbox.
-
-Return to `/search`. Switch to *US Liaison Officer*. Re-run the same query.
-
-What the audience should see:
-- All sources now show their real values — `SIGINT/THRESHER`, `RN/UKHO — Project ACHILLES`, etc.
-- The footer no longer reports `Redacted: source_name` on any card.
-- The pipeline panel no longer has a `$cond` for `source_name`.
-
-Go back to `/admin`, toggle the policy **on**. Show it returns immediately.
-
-Talk track: "Policies live in MongoDB — same database, same change feed, same RBAC if you wanted to govern *who can edit policies*. We changed one bit and the entire downstream surface — search results, redactions, even the pipeline shape — updated on the next request. No redeploy, no cache invalidation, no schema migration."
-
-### Step 8b — User admin (optional, ~1 min)
-
-Open `/admin/users` from the top nav. The five seeded personas appear as cards on the left, each with chips for clearance / nationality / unit and an "AUDITOR" chip where applicable.
-
-Click any user. The right pane shows:
-
-- **The user builder** — same visual editor + JSON view pattern as policies. You can change attributes (e.g. drop the US Liaison's compartment, raise their clearance), click *Save user*, then jump to `/search` and pick them in the header dropdown. The next search uses the updated attributes — no redeploy.
-- **Effective permissions panel** — a three-stat summary (rows visible, fields redacted, fields omitted) computed by browsing the corpus as that user, plus a list of which row policies grant visibility, which row policies *don't* apply, and which field policies may redact or omit. This is the audit answer to "what can this user actually see?"
-
-Talk track: "Policies and users are both first-class objects in the same database. We could govern who can edit them with the same ABAC engine. And this audit panel is the answer to the auditor's question — not 'what attributes does this user have?' but 'what does this user effectively *see*?'"
-
-### Step 8c — Chat with ABAC retrieval (optional, ~2 min)
-
-Click the **Ask AI ▸** button in the bottom-right of `/search`. The chat drawer slides in. Persona name and model are shown at the top — the model dropdown lists what's configured via `GROVE_CHAT_MODELS` (typically a Claude and an OpenAI model, both vision-capable).
-
-The closing demo arc: **Browse → Search → Chat**, all on the same screen, all bound by the same ABAC pipeline.
-
-Ask:
-
-> *What's happening with supply convoys around Kola?*
-
-What the audience should see, as the **UK Joint Intelligence Analyst**:
-- Tokens stream into the assistant turn.
-- A "Sources" collapsible appears under the answer with 3–6 cited reports — each chip is the same classification/compartment chip used on the search results.
-- The answer cites `[INTREP-2025-…]` IDs that round-trip to the existing ReportCard rendering.
-
-**Switch persona to the US Liaison** and ask the same question. The audience should see:
-- A shorter, less specific answer.
-- The Sources panel shows the same questions retrieved fewer reports — and where `source_name` was redacted at retrieval, the model says "source attribution is restricted" rather than making one up.
-- Any media attachments referenced in the answer are the ones the persona can see — items the persona can't see were replaced with a `{redacted: true, reason}` stub before the model ever saw them.
-
-**Switch to the Coalition Contractor** and ask the same question. The answer should be a one-liner: *"I don't have access to any reports relevant to that question."*
-
-Talk track: "Same model, same prompt, same retrieval shape. The persona is the *only* input that changed. The model can't leak what it never saw — the ABAC pre-filter at retrieval is the security boundary, the prompt is best-effort. This is the closing point of the demo: ABAC across browse, search, and now generative AI — one engine, one policy set, three surfaces."
-
-### Step 9 — Q&A safety net
-
-Audience questions usually fall into four buckets — short answers below.
-
-- **"Can I see the seed policies and seed data?"** — Yes; they're in `data/policies.seed.json` and `data/reports.seed.json`. Both are loaded by `npm run seed` and live as ordinary Mongo documents from then on.
-- **"What if the user is in a directory I already have (Okta / Entra / AD)?"** — Personas in this demo are static for clarity. In production, the persona object would be built from IdP claims on each request. The policy engine wouldn't change.
-- **"Does this scale?"** — The row filter compiles to native Mongo `$match` operators; same query planner, same indexes. The vector index has every ABAC attribute registered as a `filter` field so pre-filtering is index-backed.
-- **"What about logs?"** — Out of scope here, but the policy engine returns a structured pipeline per request — that's the audit artefact. In production you'd log `{persona, policySetVersion, rowFilter, fieldRedactions, resultIds}` to a separate collection or sink.
+- Personas: `data/users.seed.json` — also editable live at `/admin/users`.
+- Policies: `data/policies.seed.json` — also editable live at `/admin`.
+- Reports + media: `data/reports.seed.json`. Re-run `npm run seed` after editing.
+- Media files (optional): drop image files at the URLs referenced by each `mediaItems[].url` (under `public/`). When present, the seed script embeds them as text+image; when absent, embedding falls back to caption-only and the UI shows a placeholder tile.
 
 ## Admin reference — Users and Policies
 
