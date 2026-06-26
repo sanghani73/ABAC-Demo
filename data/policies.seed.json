@@ -1,0 +1,82 @@
+[
+  {
+    "policyId": "row-clearance-and-releasability",
+    "name": "Row access — clearance AND nationality releasability",
+    "description": "A row is visible if the persona's clearance covers the document's classification AND the persona's nationality is in the document's releasability list.",
+    "target": "row",
+    "effect": "allow",
+    "conditions": [
+      { "op": "clearance_gte" },
+      { "op": "nationality_in_rel" }
+    ],
+    "priority": 100,
+    "enabled": true
+  },
+  {
+    "policyId": "row-compartments",
+    "name": "Row access — compartments need-to-know",
+    "description": "On top of clearance + releasability, the persona must hold every compartment the document is tagged with (set superset).",
+    "target": "row",
+    "effect": "allow",
+    "conditions": [
+      { "op": "clearance_gte" },
+      { "op": "nationality_in_rel" },
+      { "op": "compartments_superset" }
+    ],
+    "priority": 110,
+    "enabled": true
+  },
+  {
+    "policyId": "row-own-unit-official",
+    "name": "Row access — own unit's OFFICIAL records",
+    "description": "Logistics-style access: a persona can see OFFICIAL records originating from their own unit, even without a wider clearance/releasability match.",
+    "target": "row",
+    "effect": "allow",
+    "conditions": [
+      { "op": "unit_eq" },
+      { "op": "classification_eq", "value": "OFFICIAL" }
+    ],
+    "priority": 90,
+    "enabled": true
+  },
+  {
+    "policyId": "field-source-name-source-class",
+    "name": "Field — source_name protected by source_classification",
+    "description": "A document's `source_name` is replaced with [REDACTED] when the persona's clearance is below the document's `source_classification`. The doc itself may be releasable at SECRET, but its source can still be need-to-know (e.g. HUMINT, sensitive technical collection).",
+    "target": "field",
+    "fieldPath": "source_name",
+    "effect": "redact",
+    "conditions": [
+      { "op": "field_classification_gte", "value": "source_classification" }
+    ],
+    "priority": 60,
+    "enabled": true
+  },
+  {
+    "policyId": "field-grid-ref-omit-non-compartment",
+    "name": "Field — precise grid_ref omitted for non-compartment holders",
+    "description": "Precise grid references are omitted entirely if the persona does not hold every compartment the document is tagged with.",
+    "target": "field",
+    "fieldPath": "grid_ref",
+    "effect": "omit",
+    "conditions": [
+      { "op": "compartments_superset" }
+    ],
+    "priority": 55,
+    "enabled": true
+  },
+  {
+    "policyId": "media-item-abac",
+    "name": "Media — clearance, releasability and compartments per item",
+    "description": "An attached image or video is visible only if the persona's clearance covers the item's own classification, the persona's nationality is in the item's releasability list, and the persona holds every compartment the item is tagged with. Evaluated per item, not per report.",
+    "target": "media",
+    "effect": "allow",
+    "conditions": [
+      { "op": "clearance_gte" },
+      { "op": "nationality_in_rel" },
+      { "op": "compartments_superset" }
+    ],
+    "priority": 50,
+    "enabled": true
+  }
+]

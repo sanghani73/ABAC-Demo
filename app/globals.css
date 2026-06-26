@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #f7faf9;
+  color: #0f172a;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.classification-banner {
+  letter-spacing: 0.15em;
+  font-weight: 700;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+}
+
+/* Generic chip — slate on white */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+}
+
+/* Classification chips — accented borders, soft tinted backgrounds */
+.chip-ts   { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.chip-s    { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+.chip-off  { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+
+/* Accent chip — used for auditor banner, etc. */
+.chip-accent { background: #E3FCEF; border-color: #00ED64; color: #00684A; }
+
+/* Redaction styling */
+.redacted {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(220, 38, 38, 0.20),
+    rgba(220, 38, 38, 0.20) 6px,
+    rgba(220, 38, 38, 0.05) 6px,
+    rgba(220, 38, 38, 0.05) 12px
+  );
+  color: #991b1b;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+/* Media gallery — thumbnails for attached images/video.
+   Redacted variant uses the same hatched pattern as text redaction so the two
+   read as one access-control language across modalities. */
+.media-tile { display: flex; flex-direction: column; }
+.media-thumb {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #0f172a;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.media-thumb-placeholder {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: #64748b;
+  flex-direction: column;
+  gap: 2px;
+}
+.media-type-tag {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #475569;
+  background: rgba(255,255,255,0.85);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.media-thumb-redacted {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(220, 38, 38, 0.30),
+      rgba(220, 38, 38, 0.30) 8px,
+      rgba(220, 38, 38, 0.10) 8px,
+      rgba(220, 38, 38, 0.10) 16px
+    ),
+    #fee2e2;
+  border-color: #fecaca;
+}
+.media-tile-matched .media-thumb {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+.media-lock {
+  color: #991b1b;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  background: rgba(255,255,255,0.85);
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+/* Shared input style — overrides previous dark-theme defaults */
+.input {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+.input:focus {
+  outline: none;
+  border-color: #00684A;
+  box-shadow: 0 0 0 3px rgba(0, 104, 74, 0.12);
+}

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "uk-analyst",
+    "name": "Maj. R. Whitcombe",
+    "role": "UK Joint Intelligence Analyst",
+    "clearance": "TOP_SECRET",
+    "nationality": "GBR",
+    "unit": "DI",
+    "compartments": ["OP_NEPTUNE", "OP_ORION"],
+    "description": "Top Secret, UK national, Defence Intelligence. Cleared into both active compartments — sees the broadest picture."
+  },
+  {
+    "id": "us-liaison",
+    "name": "Lt. Col. J. Carter",
+    "role": "US Liaison Officer",
+    "clearance": "SECRET",
+    "nationality": "USA",
+    "unit": "LO-UK",
+    "compartments": ["OP_NEPTUNE"],
+    "description": "Secret, US national, embedded liaison. Sees Five Eyes material releasable to USA; one compartment only."
+  },
+  {
+    "id": "uk-logistics",
+    "name": "Capt. S. Patel",
+    "role": "UK Logistics Officer, 3 Cdo Bde",
+    "clearance": "OFFICIAL",
+    "nationality": "GBR",
+    "unit": "3_CDO_BDE",
+    "compartments": [],
+    "description": "Official only, UK national, brigade logistics. Sees their own unit's records — and only OFFICIAL material."
+  },
+  {
+    "id": "coalition-contractor",
+    "name": "Ms. K. Nguyen",
+    "role": "Coalition Contractor (AUS)",
+    "clearance": "OFFICIAL",
+    "nationality": "AUS",
+    "unit": "EXT",
+    "compartments": [],
+    "description": "Official only, Australian national, external contractor. Sees the bare minimum — the 'almost nothing' end of the matrix."
+  },
+  {
+    "id": "auditor",
+    "name": "Mr. D. Holland",
+    "role": "Compliance Auditor",
+    "clearance": "TOP_SECRET",
+    "nationality": "GBR",
+    "unit": "*",
+    "compartments": ["*"],
+    "isAuditor": true,
+    "description": "Audit role. Sees everything — but their access is granted by an explicit auditor policy and is itself logged."
+  }
+]
