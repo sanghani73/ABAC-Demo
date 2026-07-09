@@ -13,6 +13,7 @@ The narrative is a UK MoD intelligence-reports scenario, but the data model, per
 - **Live policy admin** — visual builder + JSON view + "test as persona" preview that runs the proposed policy set against every persona before saving
 - **Live user admin** — personas (users) are stored in MongoDB and edited via a visual builder; each user has an "effective permissions" panel that shows which policies apply, how many rows they can see, and how many fields are redacted/omitted
 - **Chat (RAG) with ABAC retrieval** — a chat drawer on the search page sends the user's question through the same ABAC `$vectorSearch` pipeline as retrieval, then streams a response from a Grove-routed LLM (Claude or OpenAI, both vision-capable). The model only ever receives context the persona is permitted to see — including images for the multimodal moment.
+- **Temporal (time-bounded) policies** — each policy carries optional `validFrom` / `validUntil` ISO timestamps. The engine evaluates the window server-side on every request, so a policy can be set to expire in 30 seconds and the next query will visibly re-shape. Use case: contractor exercise windows, time-limited auditor grants, scheduled declassification.
 
 ## Why ABAC, not RBAC
 
@@ -82,7 +83,7 @@ The seed creates two collections (`reports`, `policies`), supporting B-tree inde
 
 If you change the embedding model to one with a different dimensionality, update `VOYAGE_DIMENSIONS` in `lib/embeddings.ts` and re-run `npm run seed` so the index is rebuilt with the correct `numDimensions`.
 
-## Recommended demo flow — Browse → Search → Chat (~15 min)
+## Recommended demo flow — Browse → Search → Chat (~17 min)
 
 This is the **full end-to-end script** that ties the three surfaces together and lands the natural progression a customer will recognise: *I can look at the data, I can search it, and I can have a conversation with it — and the same access controls apply to all three.*
 
@@ -141,7 +142,31 @@ Talk track: *"There's no special policy engine running outside the database. The
 
 Talk track: *"Policies are MongoDB documents on the same cluster as the data. One bit changes and the next request — search, browse, or chat — recompiles. No redeploy, no cache invalidation."*
 
-### 5. Chat — the natural next step (~4 min, the closing moment)
+### 5. Time-bounded policy — the grant expires while we watch (~2 min)
+
+The bridge between "policies are editable" and "policies are *governed*". A policy is going to expire on a wall clock — no human input, no redeploy — and the records it grants will disappear from the user's view.
+
+Switch persona to **UK Logistics Officer** (*Capt. S. Patel*) and stay in **Browse all**. The audience sees ~9 records — a mix of OFFICIAL material that any GBR persona can see (port visits, Arctic Council statement, liaison roster, etc.) and 5 **SECRET** records originating from `3_CDO_BDE` (vehicle maintenance, cold weather rotation, fuel forecast, ammunition stockholding, UAV sightings). The persona only holds OFFICIAL clearance — the only reason Capt. Patel sees those five SECRET records is the **own-unit override**, which grants access to their own brigade's data for operational necessity.
+
+Open `/admin` in a new tab. Find **"Row access — own unit's records (operational override)"**. Click the **Valid until** picker → **+1m**. Save.
+
+The policy card's status chip starts counting down: *expires in 58s, 57s, 56s…*
+
+Switch back to `/search` (Logistics Officer, browse-all). The 3 Cdo Bde records are still there — the policy is still active. Hit refresh / re-run the browse to demonstrate the records are still being returned by every query.
+
+When the chip turns **red** at the 60-second mark, narrate that the operational window is about to close.
+
+When the chip flips to slate-grey *expired Ns ago*, run **Browse all** one more time. **The five SECRET 3 Cdo Bde records are gone — the list drops from 9 to 4.** Capt. Patel's view of their own brigade's classified data has just been withdrawn — the operational window closed, the grant lapsed, and the database stopped returning those rows on the next query. Only the OFFICIAL records remain, granted by the standard clearance + releasability policy.
+
+You can reinforce by switching to **Semantic search** and trying `logistics readiness in 3 Cdo Bde`. Zero results.
+
+Talk track: *"This is what makes ABAC work for grants that have a real-world expiry — exercise windows, contractor access, time-limited audit. The validity window lives on the policy document. The engine evaluates it server-side on every request, against the database's own clock. The decision is tamper-proof — no client input feeds into the comparison — and the next request after the threshold returns a different answer. For free, no cleanup job, no scheduled task. The data isn't deleted; Capt. Patel simply no longer has a path to it."*
+
+To restore for the rest of the demo: open the policy again, click **clear** under Valid until, save. (Or **+15m** if you want a safety margin.) The chip disappears and the policy is permanent again — the 3 Cdo Bde records come back on the next browse.
+
+You can demonstrate the same mechanism for **granting** access by setting **Valid from** to a few seconds in the future — the policy is dormant until the moment passes, then activates. Same engine, opposite direction: "the exercise window opens at 08:00, access turns on automatically."
+
+### 6. Chat — the natural next step (~4 min, the closing moment)
 
 Back on `/search`, click **Ask AI ▸** in the bottom-right. The drawer slides in. Point out the persona chip and the model dropdown at the top — two models (Claude and OpenAI via the Grove gateway, both vision-capable).
 
@@ -169,7 +194,7 @@ Ask the same question. Audience sees:
 
 Talk track: *"Same model, same prompt template, same retrieval shape. The persona is the only input that changed. The ABAC pre-filter at retrieval is the security boundary — the prompt is a best-effort instruction, not a guarantee. This is the closing point: one engine, one policy set, three surfaces — browse, search, and now generative AI."*
 
-### 6. Closing — the **Ask about these results →** pill (~30s)
+### 7. Closing — the **Ask about these results →** pill (~30s)
 
 Show one final detail: after running a semantic search, a small pill appears in the result summary row labelled *"Ask about these results →"*. Click it. The chat drawer opens **pre-loaded** with the same query. Send.
 
@@ -193,7 +218,7 @@ Visible in the header dropdown, top → bottom.
 |---|---|---|---|---|---|---|
 | 1 | UK Joint Intelligence Analyst — *Maj. R. Whitcombe* | TOP SECRET | GBR | DI | OP_NEPTUNE, OP_ORION | Broadest access; everything passes for this persona. |
 | 2 | US Liaison Officer — *Lt. Col. J. Carter* | SECRET | USA | LO-UK | OP_NEPTUNE | Drives the redaction + per-item media gating demo moments. |
-| 3 | UK Logistics Officer — *Capt. S. Patel* | OFFICIAL | GBR | 3_CDO_BDE | — | Demos the "own unit's OFFICIAL records" row policy. |
+| 3 | UK Logistics Officer — *Capt. S. Patel* | OFFICIAL | GBR | 3_CDO_BDE | — | Demos the own-unit operational override — the only path their OFFICIAL clearance has to brigade SECRET data. Canonical persona for the temporal-policy expiry moment. |
 | 4 | Coalition Contractor — *Ms. K. Nguyen* | OFFICIAL | AUS | EXT | — | The "can't retrieve, can't leak" moment — almost everything filters out. |
 | 5 | Compliance Auditor — *Mr. D. Holland* | TOP SECRET | GBR | * | * | `isAuditor: true` — policy engine short-circuits. |
 
@@ -203,7 +228,7 @@ Visible in the header dropdown, top → bottom.
 |---|---|---|---|
 | 1 | Row — clearance AND nationality releasability | row / allow | The classic ABAC gate: clearance covers classification, nationality is in releasability. |
 | 2 | Row — compartments need-to-know | row / allow | Adds the compartments-superset check on top of policy 1. |
-| 3 | Row — own unit's OFFICIAL records | row / allow | Lets the Logistics Officer see their own brigade's OFFICIAL data without wider clearance. |
+| 3 | Row — own unit's records (operational override) | row / allow | Operational-necessity grant: a persona can see records originating from their own unit even when their clearance / nationality would otherwise fail. Typically time-bounded for the duration of an exercise — the canonical temporal-policy demo target. |
 | 4 | Field — source_name protected by source_classification | field / redact | Replaces `source_name` with `[REDACTED]` when the doc's `source_classification` exceeds the persona's clearance. |
 | 5 | Field — precise grid_ref omitted for non-compartment holders | field / omit | Removes `grid_ref` entirely when the persona doesn't hold every compartment the doc is tagged with. |
 | 6 | Media — clearance, releasability and compartments per item | media / allow | Per-item gating of `mediaItems[]` evaluated against the *item's own* attributes — not the parent report's. |
@@ -216,7 +241,7 @@ Visible in the header dropdown, top → bottom.
 |---|---|---|---|---|
 | INTREP-2025-0001 | Surface contact pattern shift, Barents approaches | TOP SECRET / GBR | OP_NEPTUNE | TS-only — only the UK Analyst and Auditor see it. |
 | INTREP-2025-0003 | Supply convoy timings, Kola peninsula | SECRET / GBR-USA-CAN | OP_NEPTUNE | `source_classification: TOP_SECRET` — `source_name` redacts for the US Liaison. **Carries a TOP SECRET drone still** that the US Liaison cannot see. |
-| INTREP-2025-0005 | Maintenance backlog, 3 Cdo Bde vehicle fleet | OFFICIAL / Five Eyes | — | Visible to the Logistics Officer via the own-unit policy. |
+| INTREP-2025-0005 | Maintenance backlog, 3 Cdo Bde vehicle fleet | SECRET / Five Eyes | — | Logistics Officer's clearance is OFFICIAL — they only see this via the **own-unit override** policy. Disable / expire policy 3 and it vanishes from their view. |
 | INTREP-2025-0010 | Allied port visit programme, Q3 | OFFICIAL / Five Eyes | — | **Carries an OFFICIAL dockside truck photo** — the language-disambiguation demo seed (UK persona searches "lorry", finds "truck"). |
 | INTREP-2025-0014 | Radar coverage gap — Norwegian coast | SECRET / GBR-USA-CAN-NZL | OP_ORION | The single card where redaction *and* omission both fire for the US Liaison (source redacted, grid_ref omitted). |
 | INTREP-2025-0017 | Adversary UAV sightings — northern training area | SECRET / GBR-USA-NZL | — | **Carries two media items** — see media table below. The cleanest per-item ABAC moment on a single report. |
@@ -286,6 +311,7 @@ A policy is a single ABAC rule. The active policy set (every enabled policy) is 
 | **Field path** | Only for Target = Field. The document field to gate (e.g. `source_name`, `grid_ref`). |
 | **Priority** | Integer. Currently informational — used for stable ordering in the list. Not used for conflict resolution; row-level `allow`s union and `deny`s subtract regardless. |
 | **Enabled** | Checkbox. Disabling a policy removes it from the compiled pipeline immediately on the next request — no redeploy. |
+| **Valid from / Valid until** | Optional ISO timestamps. A policy is treated as inactive when the current server time is outside the window. Either bound may be omitted (open-ended on that side). Quick-set shortcuts in the builder (`now`, `+15m`, `+1h`, `+1d`) make it easy to demonstrate a policy expiring live — the chip on each policy card counts down once a second. The decision itself is server-side and tamper-proof; the countdown is best-effort against the browser clock. |
 | **Conditions** | One or more rules ANDed together. See below. |
 
 ### Conditions — what each operator means

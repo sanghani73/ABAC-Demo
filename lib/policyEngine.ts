@@ -9,6 +9,12 @@ import {
 
 export const REDACTED_PLACEHOLDER = "[REDACTED]";
 
+// Re-exported from a Mongo-free module so client components (e.g. the
+// effective-permissions panel on /admin/users) can import it without
+// pulling the MongoDB driver into their bundle.
+export { isPolicyActive } from "./policyActive";
+import { isPolicyActive } from "./policyActive";
+
 // ---------------------------------------------------------------------------
 // Public surface
 // ---------------------------------------------------------------------------
@@ -59,7 +65,8 @@ export function compileMediaSearchFilter(
   policies: Policy[],
 ): Record<string, unknown> {
   if (persona.isAuditor) return {};
-  const enabled = policies.filter((p) => p.enabled !== false);
+  const now = new Date();
+  const enabled = policies.filter((p) => isPolicyActive(p, now));
   const allows = enabled.filter(
     (p) => (p.target === "row" || p.target === "media") && p.effect === "allow",
   );
@@ -76,7 +83,8 @@ export function compileMediaSearchFilter(
 }
 
 export function compilePolicies(persona: Persona, policies: Policy[]): CompiledPolicies {
-  const enabled = policies.filter((p) => p.enabled !== false);
+  const now = new Date();
+  const enabled = policies.filter((p) => isPolicyActive(p, now));
 
   const rowAllows = enabled.filter((p) => p.target === "row" && p.effect === "allow");
   const rowDenies = enabled.filter((p) => p.target === "row" && p.effect === "deny");

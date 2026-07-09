@@ -17,7 +17,8 @@ const SAMPLE_QUERIES = [
 
 export default function SearchPage() {
   const { active, activeId } = usePersona();
-  const [query, setQuery] = useState(SAMPLE_QUERIES[0]);
+  // const [query, setQuery] = useState(SAMPLE_QUERIES[0]);
+  const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [pipeline, setPipeline] = useState<unknown[]>([]);
   const [mediaPipeline, setMediaPipeline] = useState<unknown[]>([]);
@@ -59,9 +60,21 @@ export default function SearchPage() {
     }
   }, [activeId, query, mode]);
 
-  // Re-run whenever the persona or mode changes (but not on every keystroke).
+  // Re-run when the persona changes (so browse results re-shape live) or
+  // when the user switches INTO browse mode. Switching into semantic mode
+  // intentionally does NOT auto-run — the audience should see an empty
+  // results area until they choose a query and press Search.
   useEffect(() => {
-    if (activeId) run();
+    if (!activeId) return;
+    if (mode === "semantic") {
+      // Clear stale state from the previous mode and wait for user input.
+      setResults([]);
+      setPipeline([]);
+      setMediaPipeline([]);
+      setTotalUnfiltered(-1);
+      return;
+    }
+    run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, mode]);
 

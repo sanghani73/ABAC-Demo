@@ -228,6 +228,7 @@ function MediaThumb({ item }: { item: RawMedia }) {
       <video
         className="media-thumb"
         src={item.url}
+        controls
         muted
         playsInline
         preload="metadata"

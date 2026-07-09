@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import UserBuilder from "@/components/UserBuilder";
 import UserList from "@/components/UserList";
 import type { Persona, Policy, SearchResult } from "@/lib/types";
+import { isPolicyActive } from "@/lib/policyActive";
 
 interface PermissionsSummary {
   rowCount: number;
@@ -80,7 +81,9 @@ export default function UsersAdminPage() {
         const results = data.results as SearchResult[];
         const redactedTotal = results.reduce((acc, x) => acc + x.redactedFields.length, 0);
         const omittedTotal = results.reduce((acc, x) => acc + x.omittedFields.length, 0);
-        const enabled = policies.filter((p) => p.enabled !== false);
+        // Match the engine's "is this currently effective?" definition so the
+        // audit panel reflects what the next request will actually do.
+        const enabled = policies.filter((p) => isPolicyActive(p));
         // Crude per-policy applicability: re-issue the same browse with
         // a single-policy override would be cleanest, but for the demo we
         // approximate by inspecting persona attributes against each policy.

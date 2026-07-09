@@ -73,7 +73,7 @@
     "source_name": "Internal — Bde G4",
     "grid_ref": "50.79N 001.39W",
     "originating_unit": "3_CDO_BDE",
-    "classification": "OFFICIAL",
+    "classification": "SECRET",
     "releasability": ["GBR", "USA", "AUS", "CAN", "NZL"],
     "compartments": [],
     "created_at": "2026-05-19T13:00:00Z"
@@ -86,7 +86,7 @@
     "source_name": "Internal — PJHQ",
     "grid_ref": "69.65N 018.95E",
     "originating_unit": "3_CDO_BDE",
-    "classification": "OFFICIAL",
+    "classification": "SECRET",
     "releasability": ["GBR", "USA", "AUS"],
     "compartments": [],
     "created_at": "2026-05-20T07:45:00Z"
@@ -191,7 +191,7 @@
     "source_name": "Internal — DSCOM",
     "grid_ref": "n/a",
     "originating_unit": "3_CDO_BDE",
-    "classification": "OFFICIAL",
+    "classification": "SECRET",
     "releasability": ["GBR", "USA", "AUS", "CAN", "NZL"],
     "compartments": [],
     "created_at": "2026-05-26T08:30:00Z"
@@ -231,7 +231,7 @@
     "source_name": "Internal — Bde G4",
     "grid_ref": "50.79N 001.39W",
     "originating_unit": "3_CDO_BDE",
-    "classification": "OFFICIAL",
+    "classification": "SECRET",
     "releasability": ["GBR"],
     "compartments": [],
     "created_at": "2026-05-28T09:45:00Z"

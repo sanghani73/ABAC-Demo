@@ -23,15 +23,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "policyId, name, target, effect are required" }, { status: 400 });
     }
     const db = await getDb();
+    // Build $set + $unset explicitly so clearing a validity bound on the
+    // client actually unsets it on an existing document (JSON.stringify
+    // drops `undefined`, so a naive ...body spread would silently keep the
+    // old value). Strip `_id` — Mongo rejects $set on it even when the
+    // value matches the existing doc, and an upsert keyed on `policyId`
+    // never needs it.
+    const { _id, ...rest } = body as unknown as Record<string, unknown> & {
+      _id?: unknown;
+    };
+    void _id;
+    const set: Record<string, unknown> = {
+      ...rest,
+      enabled: body.enabled !== false,
+      priority: body.priority ?? 100,
+    };
+    const unset: Record<string, ""> = {};
+    for (const key of ["validFrom", "validUntil"] as const) {
+      if (!body[key]) {
+        delete set[key];
+        unset[key] = "";
+      }
+    }
+    const update: Record<string, unknown> = { $set: set };
+    if (Object.keys(unset).length > 0) update.$unset = unset;
     await db.collection(COLLECTIONS.policies).updateOne(
       { policyId: body.policyId },
-      {
-        $set: {
-          ...body,
-          enabled: body.enabled !== false,
-          priority: body.priority ?? 100,
-        },
-      },
+      update,
       { upsert: true },
     );
     return NextResponse.json({ ok: true, policyId: body.policyId });

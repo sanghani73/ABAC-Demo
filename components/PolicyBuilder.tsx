@@ -182,6 +182,42 @@ export default function PolicyBuilder({
           </Field>
         </Row>
 
+        <Row>
+          <Field label="Valid from (optional)">
+            <input
+              type="datetime-local"
+              className="input"
+              value={toLocalInput(policy.validFrom)}
+              onChange={(e) =>
+                update("validFrom", fromLocalInput(e.target.value))
+              }
+            />
+            <ValidityShortcuts
+              onSet={(iso) => update("validFrom", iso)}
+              onClear={() => update("validFrom", undefined)}
+            />
+          </Field>
+          <Field label="Valid until (optional)">
+            <input
+              type="datetime-local"
+              className="input"
+              value={toLocalInput(policy.validUntil)}
+              onChange={(e) =>
+                update("validUntil", fromLocalInput(e.target.value))
+              }
+            />
+            <ValidityShortcuts
+              onSet={(iso) => update("validUntil", iso)}
+              onClear={() => update("validUntil", undefined)}
+              future
+            />
+          </Field>
+        </Row>
+        <div className="text-xs text-slate-500 -mt-1">
+          Server evaluates the validity window on every request. Leave both
+          blank for a permanent policy.
+        </div>
+
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm text-slate-900 font-semibold">Conditions</span>
@@ -278,6 +314,69 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <div className="text-xs text-slate-600 mb-1">{label}</div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * `datetime-local` inputs render a 24h "YYYY-MM-DDTHH:MM" string in the
+ * browser's local time. We store the canonical UTC ISO string on the policy
+ * so the server-side check is timezone-stable. These two helpers do the
+ * round-trip.
+ */
+function toLocalInput(iso: string | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
+function fromLocalInput(s: string): string | undefined {
+  if (!s) return undefined;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
+/**
+ * Quick-set shortcuts for the validity inputs. Saves the demoer from
+ * fiddling with a picker on stage — click "+15 min" to set an expiry that
+ * the audience can watch tick down.
+ */
+function ValidityShortcuts({
+  onSet,
+  onClear,
+  future = false,
+}: {
+  onSet: (iso: string) => void;
+  onClear: () => void;
+  /** `true` for the "valid until" picker — labels skew forward in time. */
+  future?: boolean;
+}) {
+  const base = "text-xs px-2 py-0.5 border border-edge rounded text-slate-600 hover:text-accent hover:border-accent";
+  const set = (minutes: number) =>
+    onSet(new Date(Date.now() + minutes * 60_000).toISOString());
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      <button type="button" className={base} onClick={() => set(0)}>now</button>
+      {future ? (
+        <>
+          <button type="button" className={base} onClick={() => set(1)}>+1m</button>
+          <button type="button" className={base} onClick={() => set(15)}>+15m</button>
+          <button type="button" className={base} onClick={() => set(60)}>+1h</button>
+          <button type="button" className={base} onClick={() => set(24 * 60)}>+1d</button>
+        </>
+      ) : (
+        <>
+          <button type="button" className={base} onClick={() => set(-15)}>-15m</button>
+          <button type="button" className={base} onClick={() => set(-60)}>-1h</button>
+        </>
+      )}
+      <button type="button" className={base} onClick={onClear}>clear</button>
     </div>
   );
 }

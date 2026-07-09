@@ -61,9 +61,13 @@ export async function executeABACSearch(params: ExecuteParams): Promise<ExecuteR
   if (!persona) throw new Error(`Unknown persona: ${personaId}`);
 
   const db = await getDb();
+  // Fetch all policies — the engine filters by `enabled` AND the validity
+  // window (`validFrom`/`validUntil`) via isPolicyActive(). Keeping the DB
+  // query unfiltered means time-bounded policies are evaluated at request
+  // time, not at fetch time, with one source of truth for "is this active?".
   const policies = (await db
     .collection<Policy>(COLLECTIONS.policies)
-    .find({ enabled: { $ne: false } })
+    .find({})
     .toArray()) as Policy[];
 
   const compiled = compilePolicies(persona, policies);

@@ -27,14 +27,13 @@
     "enabled": true
   },
   {
-    "policyId": "row-own-unit-official",
-    "name": "Row access — own unit's OFFICIAL records",
-    "description": "Logistics-style access: a persona can see OFFICIAL records originating from their own unit, even without a wider clearance/releasability match.",
+    "policyId": "row-own-unit-override",
+    "name": "Row access — own unit's records (operational override)",
+    "description": "Operational-necessity grant: a persona can see records originating from their own unit even if they would fail the standard clearance / releasability gate. Typically time-bounded for the duration of an exercise or operation.",
     "target": "row",
     "effect": "allow",
     "conditions": [
-      { "op": "unit_eq" },
-      { "op": "classification_eq", "value": "OFFICIAL" }
+      { "op": "unit_eq" }
     ],
     "priority": 90,
     "enabled": true

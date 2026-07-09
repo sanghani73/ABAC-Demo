@@ -21,7 +21,16 @@ export async function PATCH(
 ) {
   try {
     const { policyId } = await params;
-    const updates = (await req.json()) as Record<string, unknown>;
+    const raw = (await req.json()) as Record<string, unknown>;
+    // Strip immutable / lookup fields — Mongo rejects `$set` of `_id` even
+    // when the value matches, and `policyId` is the lookup key which must
+    // not be silently rewritten through a PATCH.
+    const { _id, policyId: _ignore, ...updates } = raw;
+    void _id;
+    void _ignore;
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ ok: true, noop: true });
+    }
     const db = await getDb();
     await db.collection(COLLECTIONS.policies).updateOne({ policyId }, { $set: updates });
     return NextResponse.json({ ok: true });

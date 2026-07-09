@@ -23,11 +23,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "id, name, role are required" }, { status: 400 });
     }
     const db = await getDb();
+    const { _id, ...rest } = body as unknown as Record<string, unknown> & {
+      _id?: unknown;
+    };
+    void _id;
     await db.collection(COLLECTIONS.users).updateOne(
       { id: body.id },
       {
         $set: {
-          ...body,
+          ...rest,
           compartments: body.compartments ?? [],
           isAuditor: body.isAuditor === true,
         },

@@ -114,6 +114,18 @@ export interface Policy {
   effect: Effect;
   priority?: number;
   enabled: boolean;
+  /**
+   * Optional validity window. ISO-8601 timestamps. A policy is treated as
+   * disabled when `now < validFrom` or `now > validUntil`. Both bounds are
+   * inclusive; either may be omitted (open-ended on that side).
+   *
+   * Evaluated server-side on every request — the wall clock used is the
+   * Node runtime's clock at request time, which means client-side countdowns
+   * in the admin UI are approximate (subject to clock skew). The decision
+   * itself is tamper-proof: no client input feeds into the comparison.
+   */
+  validFrom?: string;
+  validUntil?: string;
 }
 
 export interface SearchRequestBody {
