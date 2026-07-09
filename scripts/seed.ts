@@ -1,22 +1,29 @@
 /**
  * Seeds the demo:
  *   1. Connects to the Atlas cluster pointed to by MONGODB_URI
- *   2. Drops & recreates the reports and policies collections
- *   3. Generates Voyage embeddings for each report's `body` (input_type=document)
- *   4. Inserts reports with the `embedding` field populated, plus policies
- *   5. Ensures the Atlas Vector Search index (type=vector on `embedding`) exists
+ *   2. Drops & recreates the reports, policies, users, media_index and
+ *      queryEmbeddings collections
+ *   3. Generates Voyage embeddings for each report's `body` (input_type=document),
+ *      each media item, and each sample search query (input_type=query)
+ *   4. Inserts reports with the `embedding` field populated, plus policies,
+ *      users, media rows, and sample-query vectors
+ *   5. Ensures the Atlas Vector Search indexes (type=vector on `embedding`) exist
  *
  * Embedding is done client-side via the Voyage API (lib/embeddings.ts) — this
  * demo targets Atlas M10, on which the autoEmbed index type is not available.
+ * The queryEmbeddings collection is the offline-mode cache: after a seed with
+ * network access, lib/queries.ts serves the sample queries entirely from Mongo
+ * with no need to reach the Voyage endpoint.
  *
  * Required env:
- *   MONGODB_URI          — Atlas cluster URI
- *   VOYAGE_API_KEY       — Voyage AI key (https://dash.voyageai.com/)
- *   VOYAGE_MODEL         — defaults to "voyage-3.5"
- *   MONGODB_DB           — defaults to "abac_demo"
- *   MONGODB_REPORTS      — defaults to "reports"
- *   MONGODB_POLICIES     — defaults to "policies"
- *   MONGODB_VECTOR_INDEX — defaults to "reports_vector"
+ *   MONGODB_URI                — Atlas cluster URI
+ *   VOYAGE_API_KEY             — Voyage AI key (https://dash.voyageai.com/)
+ *   VOYAGE_MODEL               — defaults to "voyage-3.5"
+ *   MONGODB_DB                 — defaults to "abac_demo"
+ *   MONGODB_REPORTS            — defaults to "reports"
+ *   MONGODB_POLICIES           — defaults to "policies"
+ *   MONGODB_QUERY_EMBEDDINGS   — defaults to "queryEmbeddings"
+ *   MONGODB_VECTOR_INDEX       — defaults to "reports_vector"
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
@@ -29,10 +36,12 @@ import {
   ContentPart,
   embedDocuments,
   embedMultimodal,
+  embedTexts,
   voyageDimensions,
   voyageModel,
 } from "../lib/embeddings";
 import { readImageWithMime } from "../lib/imageMime";
+import { SAMPLE_QUERIES } from "../lib/sampleQueries";
 
 const MONGODB_URI = required("MONGODB_URI");
 required("VOYAGE_API_KEY");
@@ -41,6 +50,7 @@ const REPORTS = process.env.MONGODB_REPORTS || "reports";
 const POLICIES = process.env.MONGODB_POLICIES || "policies";
 const USERS = process.env.MONGODB_USERS || "users";
 const MEDIA_INDEX = process.env.MONGODB_MEDIA_INDEX || "media_index";
+const QUERY_EMBEDDINGS = process.env.MONGODB_QUERY_EMBEDDINGS || "queryEmbeddings";
 const VECTOR_INDEX = process.env.MONGODB_VECTOR_INDEX || "reports_vector";
 const MEDIA_VECTOR_INDEX = process.env.MONGODB_MEDIA_VECTOR_INDEX || "media_vector";
 
@@ -135,6 +145,28 @@ async function main() {
   }
   await db.collection(USERS).insertMany(users as Record<string, unknown>[]);
   await db.collection(USERS).createIndex({ id: 1 }, { unique: true });
+
+  // --- query embeddings (offline cache for sample search queries) ---
+  // Pre-compute the Voyage vector for every string in SAMPLE_QUERIES so the
+  // demo's scripted queries can be served entirely from Mongo without a live
+  // call to ai.mongodb.com. input_type MUST be "query" here to match what
+  // lib/queries.ts uses at runtime — mixing document/query embeddings across
+  // seed and serve degrades retrieval quality.
+  console.log(`Embedding ${SAMPLE_QUERIES.length} sample queries via Voyage...`);
+  const queryVectors = await embedTexts([...SAMPLE_QUERIES], "query");
+  const queryDocs = SAMPLE_QUERIES.map((query, i) => ({
+    query,
+    embedding: queryVectors[i],
+    model,
+  }));
+  console.log(`Dropping and reseeding ${QUERY_EMBEDDINGS} (${queryDocs.length} entries)`);
+  try {
+    await db.collection(QUERY_EMBEDDINGS).drop();
+  } catch (err) {
+    if ((err as { codeName?: string }).codeName !== "NamespaceNotFound") throw err;
+  }
+  await db.collection(QUERY_EMBEDDINGS).insertMany(queryDocs);
+  await db.collection(QUERY_EMBEDDINGS).createIndex({ query: 1 }, { unique: true });
 
   // --- vector search indexes ---
   await ensureVectorIndex(db, REPORTS, dims, VECTOR_INDEX);

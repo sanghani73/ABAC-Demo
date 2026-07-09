@@ -5,15 +5,8 @@ import PersonaCard from "@/components/PersonaCard";
 import ReportCard from "@/components/ReportCard";
 import PipelinePanel from "@/components/PipelinePanel";
 import ChatDrawer from "@/components/ChatDrawer";
+import { SAMPLE_QUERIES } from "@/lib/sampleQueries";
 import type { SearchResult } from "@/lib/types";
-
-const SAMPLE_QUERIES = [
-  "supply route disruption near Murmansk",
-  "northern fleet activity",
-  "OP NEPTUNE planning indicators",
-  "logistics readiness in 3 Cdo Bde",
-  "coalition exercise fuel",
-];
 
 export default function SearchPage() {
   const { active, activeId } = usePersona();

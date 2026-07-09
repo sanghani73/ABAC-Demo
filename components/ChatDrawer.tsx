@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePersona } from "@/components/PersonaProvider";
+import { SAMPLE_CHAT_PROMPTS } from "@/lib/sampleQueries";
 
 interface Citation {
   reportId: string;
@@ -224,6 +225,24 @@ export default function ChatDrawer({
       </div>
 
       <div className="border-t border-edge p-3">
+        {turns.length === 0 && (
+          <div className="mb-2">
+            <div className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">
+              Try one of these
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {SAMPLE_CHAT_PROMPTS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => setInput(q)}
+                  className="text-xs px-2 py-1 border border-edge rounded text-slate-600 hover:text-accent hover:border-accent"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
           <textarea
             className="input flex-1 resize-none"

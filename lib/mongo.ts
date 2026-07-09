@@ -32,6 +32,7 @@ export const COLLECTIONS = {
   policies: process.env.MONGODB_POLICIES || "policies",
   users: process.env.MONGODB_USERS || "users",
   mediaIndex: process.env.MONGODB_MEDIA_INDEX || "media_index",
+  queryEmbeddings: process.env.MONGODB_QUERY_EMBEDDINGS || "queryEmbeddings",
 };
 
 export const VECTOR_INDEX = process.env.MONGODB_VECTOR_INDEX || "reports_vector";

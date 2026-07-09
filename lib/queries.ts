@@ -1,3 +1,4 @@
+import type { Db } from "mongodb";
 import {
   COLLECTIONS,
   EMBEDDING_PATH,
@@ -74,7 +75,18 @@ export async function executeABACSearch(params: ExecuteParams): Promise<ExecuteR
 
   let queryVector: number[] | null = null;
   if (query && query.trim().length > 0) {
-    queryVector = await embedQuery(query);
+    queryVector = await getCachedQueryEmbedding(db, query);
+    if (!queryVector) {
+      try {
+        queryVector = await embedQuery(query);
+      } catch (err) {
+        throw new Error(
+          `Query embedding unavailable — not in the offline cache and the Voyage call failed. ` +
+            `Click a sample query pill for guaranteed offline behaviour, or restore network access. ` +
+            `Underlying error: ${(err as Error).message}`,
+        );
+      }
+    }
   }
 
   // Build the report-body pipeline and the media-index search in parallel.
@@ -146,6 +158,26 @@ export async function executeABACSearch(params: ExecuteParams): Promise<ExecuteR
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Look up a precomputed Voyage query embedding from the `queryEmbeddings`
+ * collection. Populated at seed time from lib/sampleQueries.ts, this is what
+ * makes the demo's scripted queries runnable offline — the exact strings shown
+ * as pills on the search page and in the chat drawer resolve here instead of
+ * hitting ai.mongodb.com.
+ *
+ * Exact-match keying only. Fuzzy matching could silently return the wrong
+ * vector; the pill UX guarantees the string arrives verbatim.
+ */
+async function getCachedQueryEmbedding(
+  db: Db,
+  query: string,
+): Promise<number[] | null> {
+  const doc = await db
+    .collection<{ query: string; embedding: number[] }>(COLLECTIONS.queryEmbeddings)
+    .findOne({ query });
+  return doc?.embedding ?? null;
+}
 
 function buildReportPipeline(
   compiled: ReturnType<typeof compilePolicies>,
